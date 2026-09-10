@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/rootScroll" android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/background" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:paddingLeft="22dp" android:paddingTop="18dp"
+        android:paddingRight="22dp" android:paddingBottom="24dp">
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:gravity="center_vertical" android:orientation="horizontal">
+            <Button android:id="@+id/backButton" android:layout_width="52dp" android:layout_height="52dp"
+                android:background="@drawable/button_secondary" android:contentDescription="Voltar"
+                android:text="‹" android:textColor="@color/text_primary" android:textSize="30sp" />
+            <TextView android:id="@+id/titleText" android:layout_width="0dp" android:layout_height="wrap_content"
+                android:layout_marginStart="14dp" android:layout_weight="1" android:fontFamily="sans-serif-medium"
+                android:text="Editar utilizador" android:textColor="@color/text_primary" android:textSize="27sp" />
+            <Button android:id="@+id/deleteButton" android:layout_width="wrap_content" android:layout_height="48dp"
+                android:background="@android:color/transparent" android:text="Eliminar" android:textAllCaps="false"
+                android:textColor="@color/danger" android:textSize="15sp" />
+        </LinearLayout>
+        <ProgressBar android:id="@+id/progressBar" android:layout_width="wrap_content"
+            android:layout_height="wrap_content" android:layout_gravity="center_horizontal"
+            android:layout_marginTop="16dp" android:visibility="gone" />
+        <TextView android:id="@+id/messageText" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:gravity="center" android:padding="10dp"
+            android:textColor="@color/danger" android:visibility="gone" />
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="18dp" android:background="@drawable/card_background"
+            android:elevation="2dp" android:orientation="vertical" android:padding="20dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Nome" android:textColor="@color/text_secondary" android:textSize="13sp" />
+            <EditText android:id="@+id/nameInput" android:layout_width="match_parent" android:layout_height="56dp"
+                android:layout_marginTop="7dp" android:background="@drawable/input_background"
+                android:hint="Nome do utilizador" android:importantForAutofill="no" android:inputType="textPersonName"
+                android:paddingHorizontal="14dp" android:singleLine="true" android:textSize="20sp" />
+            <TextView android:id="@+id/roleText" android:layout_width="wrap_content"
+                android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Utilizador"
+                android:textColor="@color/text_secondary" android:textSize="14sp" />
+            <Switch android:id="@+id/enabledSwitch" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="16dp"
+                android:text="Utilizador ativo" android:textColor="@color/text_primary" android:textSize="17sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/accessSection" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:background="@drawable/card_background" android:elevation="2dp"
+            android:orientation="vertical" android:padding="20dp">
+            <Switch android:id="@+id/remoteSwitch" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:text="Acesso remoto"
+                android:textColor="@color/text_primary" android:textSize="18sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="6dp" android:text="Desligado: apenas dentro da zona local de 100 metros."
+                android:textColor="@color/text_secondary" android:textSize="14sp" />
+        </LinearLayout>
+        <LinearLayout android:id="@+id/scheduleSection" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:layout_marginTop="16dp"
+            android:background="@drawable/card_background" android:elevation="2dp"
+            android:orientation="vertical" android:padding="16dp">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="Horários permitidos" android:textColor="@color/text_primary"
+                android:textSize="20sp" android:textStyle="bold" />
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:layout_marginTop="4dp" android:text="Adicione períodos e selecione os dias da semana."
+                android:textColor="@color/text_secondary" android:textSize="14sp" />
+            <LinearLayout android:id="@+id/periodsContainer" android:layout_width="match_parent"
+                android:layout_height="wrap_content" android:layout_marginTop="12dp"
+                android:orientation="vertical" />
+            <Button android:id="@+id/addPeriodButton" android:layout_width="match_parent"
+                android:layout_height="52dp" android:layout_marginTop="8dp"
+                android:background="@drawable/button_secondary" android:text="＋ Adicionar período"
+                android:textAllCaps="false" android:textColor="@color/primary" android:textSize="15sp" />
+        </LinearLayout>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="22dp" android:orientation="horizontal">
+            <Button android:id="@+id/cancelButton" android:layout_width="0dp" android:layout_height="58dp"
+                android:layout_marginEnd="6dp" android:layout_weight="1"
+                android:background="@drawable/button_secondary" android:text="Cancelar"
+                android:textAllCaps="false" android:textColor="@color/text_primary" android:textSize="16sp" />
+            <Button android:id="@+id/saveButton" android:layout_width="0dp" android:layout_height="58dp"
+                android:layout_marginStart="6dp" android:layout_weight="1"
+                android:background="@drawable/button_primary" android:text="Guardar"
+                android:textAllCaps="false" android:textColor="@android:color/white"
+                android:textSize="16sp" android:textStyle="bold" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

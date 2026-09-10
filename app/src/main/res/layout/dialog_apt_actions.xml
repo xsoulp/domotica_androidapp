@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bottom_sheet_background"
+    android:orientation="vertical"
+    android:paddingLeft="18dp"
+    android:paddingTop="10dp"
+    android:paddingRight="18dp"
+    android:paddingBottom="24dp">
+    <View android:layout_width="54dp" android:layout_height="5dp" android:layout_gravity="center_horizontal" android:background="@drawable/sheet_handle" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="6dp" android:gravity="center_vertical" android:orientation="horizontal">
+        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:fontFamily="sans-serif-medium" android:text="Porta do APT" android:textColor="@color/text_primary" android:textSize="22sp" />
+        <ImageButton android:id="@+id/closeSheetButton" android:layout_width="48dp" android:layout_height="48dp" android:background="?android:attr/selectableItemBackgroundBorderless" android:contentDescription="Fechar" android:padding="12dp" android:src="@drawable/ic_close" />
+    </LinearLayout>
+    <LinearLayout android:id="@+id/sheetOpenButton" style="@style/AptSheetAction">
+        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:contentDescription="" android:src="@drawable/ic_apartment_door" android:tint="#C71922" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="18dp" android:layout_weight="1" android:orientation="vertical">
+            <TextView style="@style/AptSheetTitle" android:text="Abrir porta" />
+            <TextView style="@style/AptSheetSubtitle" android:text="Envia o comando de abertura" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/sheetLockButton" style="@style/AptSheetAction.Spaced">
+        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:contentDescription="" android:src="@drawable/ic_lock" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="18dp" android:layout_weight="1" android:orientation="vertical">
+            <TextView style="@style/AptSheetTitle" android:text="Lock" />
+            <TextView style="@style/AptSheetSubtitle" android:text="Tranca a porta do APT" />
+        </LinearLayout>
+    </LinearLayout>
+    <LinearLayout android:id="@+id/sheetUnlockButton" style="@style/AptSheetAction.Spaced">
+        <ImageView android:layout_width="32dp" android:layout_height="32dp" android:contentDescription="" android:src="@drawable/ic_unlock" />
+        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_marginStart="18dp" android:layout_weight="1" android:orientation="vertical">
+            <TextView style="@style/AptSheetTitle" android:text="Unlock" />
+            <TextView style="@style/AptSheetSubtitle" android:text="Destranca a porta do APT" />
+        </LinearLayout>
+    </LinearLayout>
+</LinearLayout>
