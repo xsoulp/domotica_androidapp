@@ -7,20 +7,37 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.RadialGradient;
+import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
 
-/** A restrained, self-contained halo used behind the door icon. */
+/** Animated luminous halo used behind the door icon. */
 public final class DoorHaloView extends View {
-    private static final float[] PARTICLE_X = {-0.91f, -0.76f, -0.48f, 0.52f, 0.79f, 0.93f, 0.31f};
-    private static final float[] PARTICLE_Y = {-0.14f, 0.58f, -0.78f, -0.82f, -0.45f, 0.31f, 0.88f};
-    private static final float[] PARTICLE_PHASE = {0.1f, 0.64f, 0.36f, 0.82f, 0.25f, 0.51f, 0.93f};
+    private static final float[] PARTICLE_X = {
+            -0.94f, -0.82f, -0.62f, -0.38f, 0.18f, 0.48f,
+            0.72f, 0.94f, 0.86f, 0.52f, 0.12f, -0.54f
+    };
+    private static final float[] PARTICLE_Y = {
+            -0.12f, 0.48f, -0.68f, 0.86f, -0.94f, -0.78f,
+            -0.52f, 0.18f, 0.58f, 0.84f, 0.96f, 0.72f
+    };
+    private static final float[] PARTICLE_PHASE = {
+            0.10f, 0.64f, 0.36f, 0.82f, 0.25f, 0.51f,
+            0.93f, 0.44f, 0.73f, 0.04f, 0.58f, 0.31f
+    };
+    private static final float[] PARTICLE_SPEED = {
+            1.0f, 1.7f, 1.3f, 2.1f, 1.5f, 1.9f,
+            1.2f, 2.3f, 1.6f, 2.0f, 1.4f, 1.8f
+    };
 
     private final Paint glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint ringPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint particlePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint sparklePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Paint highlightPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final RectF ringBounds = new RectF();
     private final int haloColor;
     private final ValueAnimator animator;
     private float phase;
@@ -36,8 +53,13 @@ public final class DoorHaloView extends View {
 
         ringPaint.setStyle(Paint.Style.STROKE);
         ringPaint.setStrokeWidth(dp(1.35f));
+        sparklePaint.setStyle(Paint.Style.STROKE);
+        sparklePaint.setStrokeCap(Paint.Cap.ROUND);
+        highlightPaint.setStyle(Paint.Style.STROKE);
+        highlightPaint.setStrokeCap(Paint.Cap.ROUND);
+        highlightPaint.setStrokeWidth(dp(2.1f));
         animator = ValueAnimator.ofFloat(0f, 1f);
-        animator.setDuration(4800L);
+        animator.setDuration(3600L);
         animator.setRepeatCount(ValueAnimator.INFINITE);
         animator.setInterpolator(new AccelerateDecelerateInterpolator());
         animator.addUpdateListener(value -> {
@@ -89,19 +111,27 @@ public final class DoorHaloView extends View {
         ringPaint.setColor(withAlpha(haloColor, (int) (205 + pulse * 40)));
         canvas.drawCircle(centerX, centerY, radius, ringPaint);
 
+        ringBounds.set(centerX - radius, centerY - radius, centerX + radius, centerY + radius);
+        highlightPaint.setColor(withAlpha(haloColor, (int) (150 + pulse * 90)));
+        canvas.drawArc(ringBounds, phase * 360f - 28f, 24f, false, highlightPaint);
+
         float orbit = radius * 1.07f;
         for (int i = 0; i < PARTICLE_X.length; i++) {
             float twinkle = 0.5f + 0.5f * (float) Math.sin(
-                    (phase + PARTICLE_PHASE[i]) * Math.PI * 2.0
+                    (phase * PARTICLE_SPEED[i] + PARTICLE_PHASE[i]) * Math.PI * 2.0
             );
-            particlePaint.setColor(withAlpha(haloColor, (int) (55 + twinkle * 175)));
-            float particleRadius = dp(0.7f + twinkle * 0.75f);
-            canvas.drawCircle(
-                    centerX + PARTICLE_X[i] * orbit,
-                    centerY + PARTICLE_Y[i] * orbit,
-                    particleRadius,
-                    particlePaint
-            );
+            float x = centerX + PARTICLE_X[i] * orbit;
+            float y = centerY + PARTICLE_Y[i] * orbit;
+            particlePaint.setColor(withAlpha(haloColor, (int) (65 + twinkle * 190)));
+            canvas.drawCircle(x, y, dp(0.75f + twinkle * 1.05f), particlePaint);
+
+            if (twinkle > 0.78f) {
+                float flare = dp(1.8f + (twinkle - 0.78f) * 13f);
+                sparklePaint.setStrokeWidth(dp(0.65f + twinkle * 0.45f));
+                sparklePaint.setColor(withAlpha(Color.WHITE, (int) (90 + twinkle * 165)));
+                canvas.drawLine(x - flare, y, x + flare, y, sparklePaint);
+                canvas.drawLine(x, y - flare, x, y + flare, sparklePaint);
+            }
         }
     }
 

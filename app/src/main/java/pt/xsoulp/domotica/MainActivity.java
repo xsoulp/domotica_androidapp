@@ -19,6 +19,9 @@ import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.Window;
@@ -370,6 +373,14 @@ public final class MainActivity extends Activity {
                         );
                         aptCanOpen = result.apartment.canOpen;
                         bldCanOpen = result.building.canOpen;
+                        updateResidenceStatus(
+                                true,
+                                nearestDistance(
+                                        result.apartment.distanceM,
+                                        result.building.distanceM
+                                ),
+                                false
+                        );
                         aptInteractionLayer.setContentDescription(
                                 result.apartment.canOpen
                                         ? "Abrir porta do apartamento. Manter premido para mais ações."
@@ -422,6 +433,34 @@ public final class MainActivity extends Activity {
         return String.format(Locale.getDefault(), "%.1f km", distanceM / 1_000.0);
     }
 
+    private Double nearestDistance(Double apartmentDistanceM, Double buildingDistanceM) {
+        if (apartmentDistanceM == null) {
+            return buildingDistanceM;
+        }
+        if (buildingDistanceM == null) {
+            return apartmentDistanceM;
+        }
+        return Math.min(apartmentDistanceM, buildingDistanceM);
+    }
+
+    private void updateResidenceStatus(boolean online, Double distanceM, boolean locating) {
+        String state = online ? "Online" : "Sem ligação";
+        String distance = formatDistance(distanceM);
+        String suffix = locating
+                ? "  •  A localizar…"
+                : (distance.isEmpty() ? "" : "  •  " + distance);
+        String text = "Minha Residência\n●  " + state + suffix;
+        SpannableString styled = new SpannableString(text);
+        int dot = text.indexOf('●');
+        styled.setSpan(
+                new ForegroundColorSpan(getColor(online ? R.color.success : R.color.danger)),
+                dot,
+                dot + 1,
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
+        );
+        residenceStatus.setText(styled);
+    }
+
     private void disableOpening(String state) {
         aptCanOpen = false;
         bldCanOpen = false;
@@ -438,6 +477,7 @@ public final class MainActivity extends Activity {
     private void capabilitiesFailed(String message) {
         progressBar.setVisibility(View.GONE);
         disableOpening("INDISPONÍVEL");
+        updateResidenceStatus(hasNetwork(), null, false);
         setStatus(message, true);
     }
 
@@ -529,7 +569,7 @@ public final class MainActivity extends Activity {
         boolean online = hasNetwork();
         connectivityText.setText(online ? "Ligado ao serviço" : "Sem ligação ao serviço");
         connectivityText.setTextColor(getColor(online ? R.color.success : R.color.danger));
-        residenceStatus.setText(online ? "Minha Residência\n●  Online" : "Minha Residência\n●  Sem ligação");
+        updateResidenceStatus(online, null, online);
         refreshCapabilities();
     }
 
