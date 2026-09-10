@@ -104,6 +104,57 @@
             <ProgressBar android:id="@+id/progressBar" style="?android:attr/progressBarStyleSmall" android:layout_width="wrap_content" android:layout_height="wrap_content" android:visibility="gone" />
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/accessHistorySection"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/status_background"
+            android:orientation="vertical"
+            android:paddingHorizontal="18dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="10dp"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="sans-serif-medium"
+                    android:text="Últimas aberturas"
+                    android:textColor="@color/text_primary"
+                    android:textSize="14sp" />
+
+                <TextView
+                    android:id="@+id/accessHistoryMessage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="144dp"
+                android:layout_marginTop="6dp"
+                android:fadeScrollbars="true"
+                android:nestedScrollingEnabled="true"
+                android:overScrollMode="ifContentScrolls">
+
+                <LinearLayout
+                    android:id="@+id/accessHistoryContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+            </ScrollView>
+        </LinearLayout>
+
         <TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:letterSpacing="0.18" android:paddingTop="18dp" android:text="—  SEGURANÇA NA PALMA DA SUA MÃO  —" android:textColor="#8A8985" android:textSize="8sp" />
     </LinearLayout>
 </ScrollView>

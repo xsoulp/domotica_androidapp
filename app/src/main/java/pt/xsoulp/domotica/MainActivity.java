@@ -23,13 +23,18 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
 import android.view.Gravity;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
 import android.view.WindowInsets;
+import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -42,6 +47,7 @@ public final class MainActivity extends Activity {
     private static final String SERVER_URL = "server_url";
     private static final String DEFAULT_SERVER_URL = "https://keys.lmpinto.pt";
     private static final String LEGACY_SERVER_HOST = "192.168.1.112";
+    private static final int ACCESS_HISTORY_LIMIT = 30;
 
     private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -58,9 +64,13 @@ public final class MainActivity extends Activity {
     private View aptInteractionLayer;
     private View openBuildingButton;
     private View usersButton;
+    private View accessHistorySection;
+    private LinearLayout accessHistoryContainer;
+    private TextView accessHistoryMessage;
     private CancellationSignal locationCancellation;
     private boolean aptCanOpen;
     private boolean bldCanOpen;
+    private boolean adminUser;
     private int capabilitiesGeneration;
 
     private interface LocationCallback {
@@ -92,6 +102,9 @@ public final class MainActivity extends Activity {
         aptInteractionLayer = findViewById(R.id.aptInteractionLayer);
         openBuildingButton = findViewById(R.id.openBuildingButton);
         usersButton = findViewById(R.id.usersButton);
+        accessHistorySection = findViewById(R.id.accessHistorySection);
+        accessHistoryContainer = findViewById(R.id.accessHistoryContainer);
+        accessHistoryMessage = findViewById(R.id.accessHistoryMessage);
         aptInteractionLayer.setOnClickListener(view -> {
             if (aptCanOpen) {
                 beginOperation("/apt_door/open", "Abrir apartamento");
@@ -301,6 +314,8 @@ public final class MainActivity extends Activity {
         int generation = ++capabilitiesGeneration;
         aptCanOpen = false;
         bldCanOpen = false;
+        adminUser = false;
+        accessHistorySection.setVisibility(View.GONE);
         disableOpening("A verificar…");
 
         if (!secretStore.hasBearer()) {
@@ -354,11 +369,9 @@ public final class MainActivity extends Activity {
                             capabilitiesFailed(result.message);
                             return;
                         }
-                        usersButton.setVisibility(
-                                result.user != null && result.user.isAdmin()
-                                        ? View.VISIBLE
-                                        : View.GONE
-                        );
+                        adminUser = result.user != null && result.user.isAdmin();
+                        usersButton.setVisibility(adminUser ? View.VISIBLE : View.GONE);
+                        accessHistorySection.setVisibility(adminUser ? View.VISIBLE : View.GONE);
                         applyDoorCapability(
                                 "APT",
                                 openApartmentButton,
@@ -386,6 +399,9 @@ public final class MainActivity extends Activity {
                                         ? "Abrir porta do apartamento. Manter premido para mais ações."
                                         : "Abertura APT indisponível. Manter premido para Lock ou Unlock."
                         );
+                        if (adminUser) {
+                            loadAccessHistory();
+                        }
                         setStatus("Acessos atualizados", false);
                     });
                 });
@@ -481,6 +497,87 @@ public final class MainActivity extends Activity {
         setStatus(message, true);
     }
 
+    private void loadAccessHistory() {
+        if (!adminUser || !secretStore.hasBearer()) {
+            accessHistorySection.setVisibility(View.GONE);
+            return;
+        }
+        final String bearer;
+        try {
+            bearer = secretStore.getBearer();
+        } catch (Exception error) {
+            accessHistoryMessage.setText("Indisponível");
+            return;
+        }
+        int generation = capabilitiesGeneration;
+        accessHistoryMessage.setText("A atualizar…");
+        String serverUrl = settings.getString(SERVER_URL, DEFAULT_SERVER_URL);
+        networkExecutor.execute(() -> {
+            ApiClient.AccessHistoryResult result = ApiClient.getAccessHistory(
+                    serverUrl,
+                    bearer,
+                    ACCESS_HISTORY_LIMIT
+            );
+            runOnUiThread(() -> {
+                if (generation != capabilitiesGeneration || !adminUser || isDestroyed()) {
+                    return;
+                }
+                if (!result.successful) {
+                    accessHistoryMessage.setText("Indisponível");
+                    return;
+                }
+                accessHistoryMessage.setText("");
+                renderAccessHistory(result.entries);
+            });
+        });
+    }
+
+    private void renderAccessHistory(java.util.List<ApiClient.AccessEvent> entries) {
+        accessHistoryContainer.removeAllViews();
+        if (entries.isEmpty()) {
+            TextView empty = new TextView(this);
+            empty.setText("Ainda não há aberturas registadas.");
+            empty.setTextColor(getColor(R.color.text_secondary));
+            empty.setTextSize(12);
+            empty.setPadding(0, dp(20), 0, dp(12));
+            accessHistoryContainer.addView(empty);
+            return;
+        }
+        LayoutInflater inflater = LayoutInflater.from(this);
+        for (ApiClient.AccessEvent entry : entries) {
+            View row = inflater.inflate(R.layout.item_access_history, accessHistoryContainer, false);
+            TextView user = row.findViewById(R.id.historyUser);
+            TextView door = row.findViewById(R.id.historyDoor);
+            TextView time = row.findViewById(R.id.historyTime);
+            user.setText(entry.userName);
+            door.setText(entry.door + " · " + historyActionLabel(entry.action));
+            time.setText(formatHistoryTime(entry.openedAt));
+            accessHistoryContainer.addView(row);
+        }
+    }
+
+    private String historyActionLabel(String action) {
+        switch (action) {
+            case "lock":
+                return "Trancar";
+            case "unlock":
+                return "Destrancar";
+            case "open":
+            default:
+                return "Abrir";
+        }
+    }
+
+    private String formatHistoryTime(String openedAt) {
+        try {
+            return OffsetDateTime.parse(openedAt).format(
+                    DateTimeFormatter.ofPattern("dd/MM  HH:mm", Locale.getDefault())
+            );
+        } catch (DateTimeParseException error) {
+            return openedAt.replace('T', ' ');
+        }
+    }
+
     private void send(String path, Location location) {
         final String bearer;
         try {
@@ -500,6 +597,9 @@ public final class MainActivity extends Activity {
                 statusText.setTextColor(getColor(
                         result.successful ? R.color.primary_dark : R.color.danger
                 ));
+                if (result.successful && adminUser) {
+                    loadAccessHistory();
+                }
             });
         });
     }
@@ -609,6 +709,10 @@ public final class MainActivity extends Activity {
     private void setStatus(String message, boolean error) {
         statusText.setText(message);
         statusText.setTextColor(getColor(error ? R.color.danger : R.color.text_secondary));
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     @Override

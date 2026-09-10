@@ -120,6 +120,43 @@ final class ApiClient {
         }
     }
 
+    static final class AccessEvent {
+        final long id;
+        final int userId;
+        final String userName;
+        final String door;
+        final String action;
+        final String openedAt;
+
+        AccessEvent(
+                long id,
+                int userId,
+                String userName,
+                String door,
+                String action,
+                String openedAt
+        ) {
+            this.id = id;
+            this.userId = userId;
+            this.userName = userName;
+            this.door = door;
+            this.action = action;
+            this.openedAt = openedAt;
+        }
+    }
+
+    static final class AccessHistoryResult {
+        final boolean successful;
+        final String message;
+        final List<AccessEvent> entries;
+
+        AccessHistoryResult(boolean successful, String message, List<AccessEvent> entries) {
+            this.successful = successful;
+            this.message = message;
+            this.entries = entries;
+        }
+    }
+
     static final class UserResult {
         final boolean successful;
         final String message;
@@ -231,6 +268,51 @@ final class ApiClient {
             return new UsersResult(
                     false,
                     errorMessage(error, "Falha ao obter utilizadores"),
+                    Collections.emptyList()
+            );
+        }
+    }
+
+    static AccessHistoryResult getAccessHistory(String baseUrl, String bearer, int limit) {
+        try {
+            HttpResponse response = request(
+                    baseUrl,
+                    "/admin/access-history?limit=" + limit,
+                    "GET",
+                    bearer,
+                    null,
+                    null,
+                    10_000
+            );
+            if (!response.successful()) {
+                return new AccessHistoryResult(
+                        false,
+                        responseMessage(response.body, response.code),
+                        Collections.emptyList()
+                );
+            }
+            JSONArray array = new JSONObject(response.body).getJSONArray("entries");
+            List<AccessEvent> entries = new ArrayList<>();
+            for (int index = 0; index < array.length(); index++) {
+                JSONObject item = array.getJSONObject(index);
+                entries.add(new AccessEvent(
+                        item.getLong("id"),
+                        item.getInt("user_id"),
+                        item.getString("user_name"),
+                        item.getString("door"),
+                        item.optString("action", "open"),
+                        item.getString("opened_at")
+                ));
+            }
+            return new AccessHistoryResult(
+                    true,
+                    "",
+                    Collections.unmodifiableList(entries)
+            );
+        } catch (Exception error) {
+            return new AccessHistoryResult(
+                    false,
+                    errorMessage(error, "Falha ao obter histórico"),
                     Collections.emptyList()
             );
         }
