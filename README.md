@@ -8,7 +8,7 @@ Aplicação Android simples para controlar as portas através do servidor em
 - Abrir a porta do apartamento (`POST /apt_door/open`)
 - Abrir a porta do prédio (`POST /bld_door`)
 - Trancar e destrancar a porta do apartamento
-- Autenticação biométrica obrigatória antes de cada operação
+- Autenticação por impressão digital ou bloqueio de ecrã antes de cada operação
 - Coordenadas GPS enviadas nos headers `X-Latitude` e `X-Longitude`
 - Bearer guardado cifrado com uma chave no Android Keystore
 - Verificação de conectividade antes do pedido
@@ -17,9 +17,9 @@ Aplicação Android simples para controlar as portas através do servidor em
 - Criação, edição e remoção de vários períodos de acesso
 - Acesso local fixo a 100 m ou acesso remoto sem limite
 
-## Instalar no Pixel
+## Instalar no Android
 
-Ativa *Opções de programador* e *Depuração USB*, liga o Pixel ao computador e
+Ativa *Opções de programador* e *Depuração USB*, liga o dispositivo ao computador e
 executa:
 
 ```bash
@@ -42,5 +42,5 @@ O APK é criado em `app/build/outputs/apk/debug/app-debug.apk`.
 ## Segurança
 
 O servidor é acedido através de HTTPS. As coordenadas comunicadas por um cliente
-podem ser falsificadas; a impressão digital protege as operações nesta app, mas
+podem ser falsificadas; a autenticação do dispositivo protege as operações nesta app, mas
 não transforma o GPS numa prova criptográfica de presença.

@@ -1,6 +1,7 @@
 package pt.xsoulp.domotica;
 
 import android.app.Activity;
+import android.app.KeyguardManager;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.graphics.Color;
@@ -20,7 +21,6 @@ public final class SettingsActivity extends Activity {
     private static final String SERVER_URL = "server_url";
     private static final String DEFAULT_SERVER_URL = "https://keys.lmpinto.pt";
     private static final String LEGACY_SERVER_HOST = "192.168.1.112";
-
     private SecretStore secretStore;
     private SharedPreferences settings;
 
@@ -91,10 +91,19 @@ public final class SettingsActivity extends Activity {
 
         TextView biometricStatus = findViewById(R.id.biometricStatus);
         BiometricManager manager = getSystemService(BiometricManager.class);
-        boolean active = manager != null
+        boolean biometricActive = manager != null
                 && manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
                 == BiometricManager.BIOMETRIC_SUCCESS;
-        biometricStatus.setText(active ? "●  Ativa" : "●  Indisponível");
+        KeyguardManager keyguardManager = getSystemService(KeyguardManager.class);
+        boolean deviceCredentialActive = keyguardManager != null && keyguardManager.isDeviceSecure();
+        boolean active = biometricActive || deviceCredentialActive;
+        biometricStatus.setText(
+                biometricActive
+                        ? "●  Impressão digital ou PIN ativos"
+                        : (deviceCredentialActive
+                                ? "●  PIN/bloqueio de ecrã ativo"
+                                : "●  Bloqueio não configurado")
+        );
         biometricStatus.setTextColor(getColor(active ? R.color.success : R.color.danger));
     }
 

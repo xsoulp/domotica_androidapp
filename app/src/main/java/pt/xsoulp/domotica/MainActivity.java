@@ -2,7 +2,9 @@ package pt.xsoulp.domotica;
 
 import android.Manifest;
 import android.app.Activity;
+import android.app.AlertDialog;
 import android.app.Dialog;
+import android.app.KeyguardManager;
 import android.hardware.biometrics.BiometricManager;
 import android.hardware.biometrics.BiometricPrompt;
 import android.content.Intent;
@@ -19,6 +21,7 @@ import android.os.CancellationSignal;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.SystemClock;
+import android.provider.Settings;
 import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.style.ForegroundColorSpan;
@@ -41,6 +44,7 @@ import java.util.concurrent.Executors;
 
 public final class MainActivity extends Activity {
     private static final int LOCATION_PERMISSION_REQUEST = 10;
+    private static final int DEVICE_CREDENTIAL_REQUEST = 11;
     private static final long MAX_CACHED_LOCATION_AGE_NS = 20_000_000_000L;
     private static final float MAX_CACHED_LOCATION_ACCURACY_M = 100.0f;
     private static final String SETTINGS = "app_settings";
@@ -48,6 +52,7 @@ public final class MainActivity extends Activity {
     private static final String DEFAULT_SERVER_URL = "https://keys.lmpinto.pt";
     private static final String LEGACY_SERVER_HOST = "192.168.1.112";
     private static final int ACCESS_HISTORY_LIMIT = 30;
+    private static final String PENDING_AUTH_PATH = "pending_auth_path";
 
     private final ExecutorService networkExecutor = Executors.newSingleThreadExecutor();
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
@@ -72,6 +77,7 @@ public final class MainActivity extends Activity {
     private boolean bldCanOpen;
     private boolean adminUser;
     private int capabilitiesGeneration;
+    private String pendingAuthenticationPath;
 
     private interface LocationCallback {
         void onLocation(Location location);
@@ -84,6 +90,10 @@ public final class MainActivity extends Activity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         applySystemBarInsets();
+
+        if (savedInstanceState != null) {
+            pendingAuthenticationPath = savedInstanceState.getString(PENDING_AUTH_PATH);
+        }
 
         settings = getSharedPreferences(SETTINGS, MODE_PRIVATE);
         String configuredServer = settings.getString(SERVER_URL, DEFAULT_SERVER_URL);
@@ -164,10 +174,22 @@ public final class MainActivity extends Activity {
             return;
         }
 
+        if (!hasLocationProvider()) {
+            showEnableLocationDialog();
+            return;
+        }
+
+        authenticateForOperation(path, title);
+    }
+
+    private void authenticateForOperation(String path, String title) {
         BiometricManager manager = getSystemService(BiometricManager.class);
-        if (manager == null || manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                != BiometricManager.BIOMETRIC_SUCCESS) {
-            setStatus("Impressão digital indisponível ou não configurada", true);
+        boolean biometricAvailable = manager != null
+                && manager.canAuthenticate(BiometricManager.Authenticators.BIOMETRIC_STRONG)
+                == BiometricManager.BIOMETRIC_SUCCESS;
+
+        if (!biometricAvailable) {
+            authenticateWithDeviceCredential(path, title);
             return;
         }
 
@@ -175,8 +197,11 @@ public final class MainActivity extends Activity {
                 .setTitle(title)
                 .setSubtitle("Confirma com a impressão digital")
                 .setAllowedAuthenticators(BiometricManager.Authenticators.BIOMETRIC_STRONG)
-                .setNegativeButton("Cancelar", getMainExecutor(), (dialog, which) -> {
-                })
+                .setNegativeButton(
+                        "Usar PIN",
+                        getMainExecutor(),
+                        (dialog, which) -> authenticateWithDeviceCredential(path, title)
+                )
                 .build();
 
         prompt.authenticate(
@@ -190,7 +215,13 @@ public final class MainActivity extends Activity {
 
                     @Override
                     public void onAuthenticationError(int errorCode, CharSequence message) {
-                        if (errorCode != BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED) {
+                        if (errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE
+                                || errorCode == BiometricPrompt.BIOMETRIC_ERROR_HW_NOT_PRESENT
+                                || errorCode == BiometricPrompt.BIOMETRIC_ERROR_NO_BIOMETRICS
+                                || errorCode == BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT
+                                || errorCode == BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT) {
+                            authenticateWithDeviceCredential(path, title);
+                        } else if (errorCode != BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED) {
                             setStatus(message.toString(), true);
                         }
                     }
@@ -201,6 +232,41 @@ public final class MainActivity extends Activity {
                     }
                 }
         );
+    }
+
+    private void authenticateWithDeviceCredential(String path, String title) {
+        KeyguardManager keyguardManager = getSystemService(KeyguardManager.class);
+        if (keyguardManager == null || !keyguardManager.isDeviceSecure()) {
+            setStatus("Configura um PIN, padrão ou palavra-passe no telemóvel", true);
+            return;
+        }
+
+        Intent intent = keyguardManager.createConfirmDeviceCredentialIntent(
+                title,
+                "Confirma com o PIN, padrão ou palavra-passe do telemóvel"
+        );
+        if (intent == null) {
+            setStatus("Não foi possível abrir a autenticação do telemóvel", true);
+            return;
+        }
+
+        pendingAuthenticationPath = path;
+        startActivityForResult(intent, DEVICE_CREDENTIAL_REQUEST);
+    }
+
+    @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode != DEVICE_CREDENTIAL_REQUEST) {
+            return;
+        }
+
+        String path = pendingAuthenticationPath;
+        pendingAuthenticationPath = null;
+        if (resultCode == RESULT_OK && path != null) {
+            // Run after onResume so its capability refresh cannot cancel this location request.
+            mainHandler.post(() -> obtainLocationAndSend(path));
+        }
     }
 
     private void obtainLocationAndSend(String path) {
@@ -227,8 +293,8 @@ public final class MainActivity extends Activity {
         }
 
         LocationManager manager = getSystemService(LocationManager.class);
-        if (manager == null || !manager.isLocationEnabled()) {
-            callback.onError("Ativa a localização");
+        if (manager == null) {
+            callback.onError("Serviço de localização indisponível");
             return;
         }
 
@@ -238,17 +304,9 @@ public final class MainActivity extends Activity {
             return;
         }
 
-        String provider;
-        if (manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-            provider = LocationManager.NETWORK_PROVIDER;
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                && manager.hasProvider(LocationManager.FUSED_PROVIDER)
-                && manager.isProviderEnabled(LocationManager.FUSED_PROVIDER)) {
-            provider = LocationManager.FUSED_PROVIDER;
-        } else if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            provider = LocationManager.GPS_PROVIDER;
-        } else {
-            callback.onError("Nenhum serviço de localização disponível");
+        String provider = findEnabledLocationProvider(manager);
+        if (provider == null) {
+            callback.onError("Ativa a localização nas Definições");
             return;
         }
 
@@ -283,13 +341,46 @@ public final class MainActivity extends Activity {
         );
     }
 
+    private String findEnabledLocationProvider(LocationManager manager) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                && manager.hasProvider(LocationManager.FUSED_PROVIDER)
+                && manager.isProviderEnabled(LocationManager.FUSED_PROVIDER)) {
+            return LocationManager.FUSED_PROVIDER;
+        }
+        if (manager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
+            return LocationManager.GPS_PROVIDER;
+        }
+        if (manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
+            return LocationManager.NETWORK_PROVIDER;
+        }
+        return null;
+    }
+
+    private boolean hasLocationProvider() {
+        LocationManager manager = getSystemService(LocationManager.class);
+        return manager != null && findEnabledLocationProvider(manager) != null;
+    }
+
+    private void showEnableLocationDialog() {
+        setStatus("Ativa a localização nas Definições", true);
+        new AlertDialog.Builder(this)
+                .setTitle("Localização desativada")
+                .setMessage("A localização precisa é necessária para validar a proximidade das portas.")
+                .setPositiveButton("Abrir Definições", (dialog, which) -> startActivity(
+                        new Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                ))
+                .setNegativeButton("Cancelar", null)
+                .show();
+    }
+
     private Location findRecentLocation(LocationManager manager) {
         Location best = null;
-        String[] providers = {
-                LocationManager.FUSED_PROVIDER,
-                LocationManager.NETWORK_PROVIDER,
-                LocationManager.GPS_PROVIDER
-        };
+        java.util.List<String> providers = new java.util.ArrayList<>();
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            providers.add(LocationManager.FUSED_PROVIDER);
+        }
+        providers.add(LocationManager.NETWORK_PROVIDER);
+        providers.add(LocationManager.GPS_PROVIDER);
         long now = SystemClock.elapsedRealtimeNanos();
         for (String provider : providers) {
             try {
@@ -681,7 +772,12 @@ public final class MainActivity extends Activity {
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
         if (requestCode == LOCATION_PERMISSION_REQUEST) {
-            refreshCapabilities();
+            if (checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED) {
+                refreshCapabilities();
+            } else {
+                capabilitiesFailed("Permite a localização precisa para continuar");
+            }
         }
     }
 
@@ -713,6 +809,12 @@ public final class MainActivity extends Activity {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        super.onSaveInstanceState(outState);
+        outState.putString(PENDING_AUTH_PATH, pendingAuthenticationPath);
     }
 
     @Override
