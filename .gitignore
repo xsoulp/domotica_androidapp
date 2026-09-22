@@ -1,0 +1,10 @@
+__pycache__/
+*.py[cod]
+*.bak*
+
+.server.env
+.switchbot-bot.env
+.switchbot-lock.env
+
+users.json
+access-history.json

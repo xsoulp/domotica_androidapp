@@ -1,0 +1,17 @@
+[Unit]
+Description=Minimal SwitchBot HTTP API
+Wants=bluetooth.service
+After=bluetooth.service
+
+[Service]
+Type=simple
+Environment=PATH=%h/switchbot-venv/bin:/usr/local/bin:/usr/bin:/bin
+ExecStart=%h/switchbot-venv/bin/python %h/domotica_server/switchbot-server.py --host 0.0.0.0 --port 8765
+WorkingDirectory=%h/domotica_server
+Restart=on-failure
+RestartSec=2
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=default.target
